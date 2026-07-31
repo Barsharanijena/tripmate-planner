@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # pydantic-settings below only reads .env into this module's own Settings
@@ -36,6 +37,14 @@ class Settings(BaseSettings):
     """Optional. When unset, trip threads are checkpointed in memory only."""
 
     cors_origins: list[str] = ["http://localhost:5173"]
+    """Comma-separated in env, e.g. CORS_ORIGINS=https://myapp.vercel.app,http://localhost:5173"""
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_csv(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
 
 @lru_cache

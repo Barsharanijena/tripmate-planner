@@ -52,6 +52,9 @@ PREFERRED_HUB = {
     "hyderabad": "HYD",
     "pune": "PNQ",
     "bhubaneswar": "BBI",
+    # City-without-its-own-airport cases known to geocode badly or ambiguously:
+    "panaji": "GOI",  # Goa's capital — geocoders often only index it as "Panjim"
+    "goa": "GOI",
     "toronto": "YYZ",
     "sydney": "SYD",
     "melbourne": "MEL",
@@ -173,17 +176,21 @@ def resolve_airport(place: str | None) -> AirportMatch | None:
         return None
 
     place = place.strip()
-    if len(place) == 3 and place.isalpha():
-        code = place.upper()
-        if code in _airports():
-            return AirportMatch(iata=code, exact=True)
-
     needle = place.lower()
 
+    # Curated aliases go first: a deliberately-checked city/country name
+    # should always win over an incidental 3-letter collision with an
+    # unrelated airport's actual IATA code (e.g. the city "Goa" is not the
+    # airport code GOA — that's Genoa, Italy).
     if needle in PREFERRED_HUB:
         return AirportMatch(iata=PREFERRED_HUB[needle], exact=True)
     if needle in COUNTRY_HUB:
         return AirportMatch(iata=COUNTRY_HUB[needle], exact=True)
+
+    if len(place) == 3 and place.isalpha():
+        code = place.upper()
+        if code in _airports():
+            return AirportMatch(iata=code, exact=True)
 
     needle_pattern = re.compile(rf"\b{re.escape(needle)}\b")
     best: tuple[int, str] | None = None

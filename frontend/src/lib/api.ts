@@ -1,5 +1,6 @@
-// Base URL for the TripMate FastAPI backend. Hardcoded for v1 — no env plumbing needed.
-export const API_BASE_URL = 'http://localhost:8000'
+// Base URL for the TripMate FastAPI backend. Set VITE_API_BASE_URL at build
+// time for a deployed backend; defaults to local dev otherwise.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 export type StepName = 'understand' | 'flights' | 'hotels' | 'weather' | 'itinerary' | 'final'
 

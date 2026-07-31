@@ -24,7 +24,7 @@ def geocode(place: str) -> GeocodeResult | None:
     try:
         response = requests.get(
             GEOCODING_URL,
-            params={"name": place.strip(), "count": 1, "language": "en", "format": "json"},
+            params={"name": place.strip(), "count": 10, "language": "en", "format": "json"},
             timeout=10,
         )
         response.raise_for_status()
@@ -36,5 +36,11 @@ def geocode(place: str) -> GeocodeResult | None:
     if not results:
         return None
 
-    top = results[0]
-    return GeocodeResult(name=top["name"], country=top.get("country"), lat=top["latitude"], lon=top["longitude"])
+    # The API's own ranking sometimes puts a same-named tiny village ahead of
+    # a genuinely well-known city (e.g. "Panaji" matched a hamlet in
+    # Guatemala with no population data before India's actual state capital
+    # of ~71k people, which the source only indexes under its historic name
+    # "Panjim"). Preferring the highest population among the candidates it
+    # did return is a cheap, general fix for that whole class of mismatch.
+    best = max(results, key=lambda r: r.get("population") or 0)
+    return GeocodeResult(name=best["name"], country=best.get("country"), lat=best["latitude"], lon=best["longitude"])

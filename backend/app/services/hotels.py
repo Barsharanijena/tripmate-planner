@@ -1,3 +1,5 @@
+import os
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_tavily import TavilySearch
 from pydantic import BaseModel, Field
@@ -25,7 +27,10 @@ def search_hotels(query: TripQuery) -> list[HotelOption]:
             )
         ]
 
-    search = TavilySearch(max_results=5, api_key=settings.tavily_api_key)
+    # TavilySearch reads its key from the process environment rather than a
+    # constructor kwarg, so it has to be exported here rather than passed in.
+    os.environ.setdefault("TAVILY_API_KEY", settings.tavily_api_key)
+    search = TavilySearch(max_results=5)
     budget_hint = f" under ${query.budget_usd:.0f} total" if query.budget_usd else ""
     raw_results = search.invoke(f"best hotels in {query.destination}{budget_hint} for travelers")
 

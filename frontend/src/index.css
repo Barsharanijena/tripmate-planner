@@ -1,0 +1,157 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces/standard.css';
+@import '@fontsource-variable/inter/index.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+
+  /* Clay — the primary accent. Warm, sun-baked terracotta that reads "travel" */
+  /* without leaning on the blue-gradient SaaS cliche. */
+  --color-clay-50: #fdf5f1;
+  --color-clay-100: #fbe6dc;
+  --color-clay-200: #f6c9b1;
+  --color-clay-300: #eea680;
+  --color-clay-400: #e37f52;
+  --color-clay-500: #d35f34;
+  --color-clay-600: #b84726;
+  --color-clay-700: #983821;
+  --color-clay-800: #7a2f1e;
+  --color-clay-900: #64291c;
+  --color-clay-950: #37130c;
+
+  /* Lagoon — secondary accent used sparingly for hotels / cool contrast. */
+  --color-lagoon-50: #eefbfa;
+  --color-lagoon-100: #d3f3f0;
+  --color-lagoon-200: #ade5e0;
+  --color-lagoon-300: #78cec7;
+  --color-lagoon-400: #47b0a8;
+  --color-lagoon-500: #2c928c;
+  --color-lagoon-600: #227570;
+  --color-lagoon-700: #1f5e5b;
+  --color-lagoon-800: #1e4c4a;
+  --color-lagoon-900: #1c403f;
+  --color-lagoon-950: #0b2423;
+
+  /* Sand — warm neutral base, used instead of a flat gray. */
+  --color-sand-50: #fbf8f4;
+  --color-sand-100: #f6f1e9;
+  --color-sand-200: #ece3d3;
+  --color-sand-300: #ddceb0;
+
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.5s ease both;
+  --animate-pop: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-soft-pulse: soft-pulse 2s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-grow-x: grow-x 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.75);
+      opacity: 0.3;
+    }
+    65% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  @keyframes soft-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-clay-500) 32%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-clay-500) 0%, transparent);
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -120% 0;
+    }
+    100% {
+      background-position: 220% 0;
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-sand-50 text-stone-800 antialiased;
+    @apply dark:bg-[#161310] dark:text-stone-200;
+    font-feature-settings: 'ss01' 1, 'cv05' 1;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+  }
+
+  ::selection {
+    @apply bg-clay-200 text-clay-900;
+  }
+
+  * {
+    scrollbar-color: var(--color-stone-300) transparent;
+  }
+  .dark * {
+    scrollbar-color: var(--color-stone-700) transparent;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      100deg,
+      color-mix(in oklab, var(--color-stone-200) 60%, transparent) 30%,
+      color-mix(in oklab, var(--color-clay-200) 70%, transparent) 50%,
+      color-mix(in oklab, var(--color-stone-200) 60%, transparent) 70%
+    );
+    background-size: 250% 100%;
+  }
+  .dark .skeleton-shimmer {
+    background: linear-gradient(
+      100deg,
+      color-mix(in oklab, var(--color-stone-800) 60%, transparent) 30%,
+      color-mix(in oklab, var(--color-clay-900) 70%, transparent) 50%,
+      color-mix(in oklab, var(--color-stone-800) 60%, transparent) 70%
+    );
+    background-size: 250% 100%;
+  }
+}

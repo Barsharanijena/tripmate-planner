@@ -19,7 +19,10 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
         ]
 
     origin_iata = resolve_iata(query.origin)
-    dest_iata = resolve_iata(query.destination)
+    # gateway_city is always a single real city (query understanding resolves
+    # regions/states/countries down to their primary gateway, e.g. "Kashmir"
+    # -> "Srinagar"), so lookups use it instead of the free-text destination.
+    dest_iata = resolve_iata(query.gateway_city)
 
     # Without a resolved destination, AviationStack would be queried with no
     # route filter at all and hand back arbitrary global live flights that
@@ -31,7 +34,7 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
                 airline="Unknown destination",
                 origin_iata=origin_iata,
                 notes=(
-                    f'Couldn\'t match "{query.destination}" to a known airport, city, or '
+                    f'Couldn\'t match "{query.gateway_city}" to a known airport, city, or '
                     "country — live flight search was skipped rather than showing unrelated flights."
                 ),
             )

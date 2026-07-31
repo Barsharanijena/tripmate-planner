@@ -15,6 +15,10 @@ SYSTEM_PROMPT = """You extract structured trip intent from a traveler's free-tex
 - If no origin is mentioned, leave it null.
 - trip_length_days should be null if not stated or inferable.
 - preferences should be short tags like "beaches", "museums", "nightlife", "budget-friendly".
+- gateway_city must always be one real, flyable city — never a region, state, country,
+  or multi-city area. If the destination as phrased already is one city, gateway_city is
+  the same city. Otherwise pick its actual primary gateway, e.g. "Kashmir" -> "Srinagar",
+  "Tuscany" -> "Florence", "the Maldives" -> "Male", "Japan" -> "Tokyo".
 """
 
 

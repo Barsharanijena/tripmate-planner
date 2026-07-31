@@ -19,7 +19,14 @@ class TripQuery(BaseModel):
     """Structured intent extracted from the user's free-text request."""
 
     origin: str | None = Field(default=None, description="Origin city or country, if mentioned")
-    destination: str = Field(description="Destination city or country")
+    destination: str = Field(description="Destination as the user phrased it, for display")
+    gateway_city: str = Field(
+        description=(
+            "A single real, flyable city for this trip — the destination itself if it's "
+            "already one city, otherwise its primary gateway (e.g. 'Kashmir' -> 'Srinagar', "
+            "'Tuscany' -> 'Florence'). Used for flight/hotel lookups, so it must be a real city."
+        )
+    )
     trip_length_days: int | None = Field(default=None, ge=1, le=60)
     travelers: int = Field(default=1, ge=1)
     budget_usd: float | None = Field(default=None, ge=0)

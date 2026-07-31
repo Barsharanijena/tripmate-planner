@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Compass, Moon, Sun } from 'lucide-react'
 import { Composer } from './components/Composer'
 import { ProgressTimeline } from './components/ProgressTimeline'
@@ -6,10 +7,49 @@ import { ErrorState } from './components/ErrorState'
 import { useTripPlanner } from './hooks/useTripPlanner'
 import { useTheme } from './hooks/useTheme'
 
+const TRIP_PATH = /^\/trip\/([^/]+)$/
+
 function App() {
-  const { phase, completedSteps, stepMessages, plan, errorMessage, lastMessage, submit, retry, reset } =
-    useTripPlanner()
+  const {
+    phase,
+    completedSteps,
+    stepMessages,
+    plan,
+    errorMessage,
+    lastMessage,
+    threadId,
+    submit,
+    retry,
+    reset,
+    loadThread,
+    refine,
+    isRefining,
+    refineError,
+  } = useTripPlanner()
   const { theme, toggle: toggleTheme } = useTheme()
+
+  // Deep-link support: /trip/:id loads a previously-generated plan directly.
+  const loadedFromUrlRef = useRef(false)
+  useEffect(() => {
+    if (loadedFromUrlRef.current) return
+    loadedFromUrlRef.current = true
+    const match = TRIP_PATH.exec(window.location.pathname)
+    if (match) void loadThread(match[1])
+  }, [loadThread])
+
+  // Keep the URL in sync so a completed plan is shareable/reloadable, and
+  // "New trip" clears it — without pulling in a router for one route.
+  useEffect(() => {
+    if (phase === 'success' && threadId) {
+      const target = `/trip/${threadId}`
+      if (window.location.pathname !== target) window.history.pushState({}, '', target)
+    }
+  }, [phase, threadId])
+
+  const handleReset = () => {
+    reset()
+    if (window.location.pathname !== '/') window.history.pushState({}, '', '/')
+  }
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -19,7 +59,7 @@ function App() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
           <button
             type="button"
-            onClick={reset}
+            onClick={handleReset}
             className="group flex items-center gap-2"
             aria-label="TripMate — start a new trip"
           >
@@ -62,13 +102,19 @@ function App() {
 
         {phase === 'error' && (
           <div className="mx-auto flex w-full max-w-6xl justify-center px-5 py-14 sm:px-8 sm:py-20">
-            <ErrorState message={errorMessage ?? 'Something went wrong.'} onRetry={retry} onStartOver={reset} />
+            <ErrorState message={errorMessage ?? 'Something went wrong.'} onRetry={retry} onStartOver={handleReset} />
           </div>
         )}
 
         {phase === 'success' && plan && (
           <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
-            <ResultsView plan={plan} onNewTrip={reset} />
+            <ResultsView
+              plan={plan}
+              onNewTrip={handleReset}
+              onRefine={refine}
+              isRefining={isRefining}
+              refineError={refineError}
+            />
           </div>
         )}
       </main>

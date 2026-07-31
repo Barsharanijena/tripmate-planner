@@ -19,11 +19,18 @@ export function FlightCard({ flight }: { flight: FlightOption }) {
             )}
           </div>
         </div>
-        {flight.status && (
-          <span className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
-            {flight.status}
-          </span>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {flight.price != null && (
+            <span className="rounded-full bg-lagoon-100 px-2.5 py-1 text-xs font-semibold text-lagoon-700 dark:bg-lagoon-950/50 dark:text-lagoon-300">
+              {flight.currency} {flight.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </span>
+          )}
+          {flight.status && (
+            <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+              {flight.status}
+            </span>
+          )}
+        </div>
       </div>
 
       {hasRoute && (

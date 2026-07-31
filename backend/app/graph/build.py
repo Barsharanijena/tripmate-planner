@@ -9,6 +9,7 @@ from app.graph.nodes.flights import flights_node
 from app.graph.nodes.hotels import hotels_node
 from app.graph.nodes.itinerary import itinerary_node
 from app.graph.nodes.understand import understand_node
+from app.graph.nodes.weather import weather_node
 from app.graph.state import TravelState
 from app.schemas import TravelPlan, TripQuery
 
@@ -20,16 +21,19 @@ def get_travel_graph():
     graph.add_node("understand", understand_node)
     graph.add_node("flights", flights_node)
     graph.add_node("hotels", hotels_node)
+    graph.add_node("weather", weather_node)
     graph.add_node("itinerary", itinerary_node)
     graph.add_node("final", final_node)
 
     graph.add_edge(START, "understand")
-    # Flights and hotels don't depend on each other, so they fan out and run
-    # concurrently; itinerary is a fan-in that waits on both branches.
+    # Flights, hotels, and weather don't depend on each other, so they fan
+    # out and run concurrently; itinerary is a fan-in that waits on all three.
     graph.add_edge("understand", "flights")
     graph.add_edge("understand", "hotels")
+    graph.add_edge("understand", "weather")
     graph.add_edge("flights", "itinerary")
     graph.add_edge("hotels", "itinerary")
+    graph.add_edge("weather", "itinerary")
     graph.add_edge("itinerary", "final")
     graph.add_edge("final", END)
 
@@ -47,7 +51,9 @@ def state_to_plan(state: TravelState, query: TripQuery) -> TravelPlan:
         trip_summary=state.get("trip_summary", ""),
         flights=state.get("flights", []),
         hotels=state.get("hotels", []),
+        weather=state.get("weather"),
         itinerary=state.get("itinerary", []),
-        budget_estimate=state.get("budget_estimate"),
+        budget=state.get("budget", []),
+        packing_tips=state.get("packing_tips", []),
         recommendations=state.get("recommendations", []),
     )

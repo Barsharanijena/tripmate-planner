@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     aviationstack_api_key: str = ""
 
+    amadeus_api_key: str = ""
+    amadeus_api_secret: str = ""
+    """Optional. When both are set, real bookable flight fares (Amadeus) are used instead of
+    AviationStack's live-status-only data."""
+
     langsmith_api_key: str = ""
     langsmith_project: str = "tripmate-planner"
     """Optional. When set, every graph run (and the LLM calls inside it) is traced to LangSmith."""

@@ -155,3 +155,30 @@
     background-size: 250% 100%;
   }
 }
+
+@media print {
+  header,
+  footer {
+    display: none !important;
+  }
+
+  body,
+  .dark {
+    background: white !important;
+    color: black !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .animate-fade-up {
+    animation: none !important;
+  }
+
+  a[href]::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #666;
+  }
+}

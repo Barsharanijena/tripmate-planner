@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BedDouble, CalendarDays, Check, Plane, Search, Sparkles, type LucideIcon } from 'lucide-react'
+import { BedDouble, CalendarDays, Check, CloudSun, Plane, Search, Sparkles, type LucideIcon } from 'lucide-react'
 import { STEP_COPY, STEP_GROUPS, statusForGroup, statusForStep, type StepStatus } from '../lib/steps'
 import type { StepName } from '../lib/api'
 
@@ -13,6 +13,7 @@ const STEP_ICONS: Record<StepName, LucideIcon> = {
   understand: Search,
   flights: Plane,
   hotels: BedDouble,
+  weather: CloudSun,
   itinerary: CalendarDays,
   final: Sparkles,
 }

@@ -3,6 +3,7 @@ import requests
 from app.config import get_settings
 from app.schemas import FlightOption, TripQuery
 from app.services.airports import resolve_airport
+from app.services.amadeus import search_real_fares
 from app.services.retry import retry_call
 
 AVIATIONSTACK_URL = "https://api.aviationstack.com/v1/flights"
@@ -10,13 +11,6 @@ AVIATIONSTACK_URL = "https://api.aviationstack.com/v1/flights"
 
 def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
     settings = get_settings()
-    if not settings.aviationstack_api_key:
-        return [
-            FlightOption(
-                airline="Unavailable",
-                notes="AVIATIONSTACK_API_KEY is not configured; skipping live flight search.",
-            )
-        ]
 
     origin_match = resolve_airport(query.origin)
     # gateway_city is always a single real city (query understanding resolves
@@ -24,10 +18,11 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
     # -> "Srinagar"), so lookups use it instead of the free-text destination.
     dest_match = resolve_airport(query.gateway_city)
 
-    # Without a resolved destination, AviationStack would be queried with no
-    # route filter at all and hand back arbitrary global live flights that
-    # look plausible but have nothing to do with what was actually asked —
-    # worse than no result, so this stops before making that call.
+    # Without a resolved destination, neither provider can be queried
+    # meaningfully — AviationStack in particular would fall back to no route
+    # filter at all and hand back arbitrary global live flights that look
+    # plausible but have nothing to do with what was actually asked, so this
+    # stops before making that call.
     if not dest_match:
         return [
             FlightOption(
@@ -55,6 +50,24 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
             f"{origin_iata} near {origin_match.matched_place} (~{origin_match.distance_km:.0f} km away)."
         )
         fallback_note = f"{fallback_note} {origin_note}" if fallback_note else origin_note
+
+    # Amadeus gives real bookable fares (what AviationStack fundamentally
+    # can't — it's live-status data only), so it's tried first. A None
+    # return means it's not configured or had no results, not an error, so
+    # AviationStack below is a genuine fallback rather than a duplicate call.
+    real_fares = search_real_fares(origin_iata, dest_iata, query.travel_month, query.travelers)
+    if real_fares:
+        if fallback_note:
+            real_fares[0].notes = f"{fallback_note} {real_fares[0].notes or ''}".strip()
+        return real_fares
+
+    if not settings.aviationstack_api_key:
+        return [
+            FlightOption(
+                airline="Unavailable",
+                notes="Neither AMADEUS_API_KEY nor AVIATIONSTACK_API_KEY is configured; skipping flight search.",
+            )
+        ]
 
     params = {"access_key": settings.aviationstack_api_key, "limit": limit, "arr_iata": dest_iata}
     if origin_iata:

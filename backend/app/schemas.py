@@ -15,6 +15,10 @@ class TripRequest(BaseModel):
     thread_id: str | None = Field(default=None, description="Existing conversation to continue")
 
 
+class RefineRequest(BaseModel):
+    instruction: str = Field(min_length=1, description="e.g. 'cheaper hotels', 'make day 2 more relaxed'")
+
+
 class TripQuery(BaseModel):
     """Structured intent extracted from the user's free-text request."""
 
@@ -45,6 +49,8 @@ class FlightOption(BaseModel):
     departure_time: str | None = None
     arrival_time: str | None = None
     status: str | None = None
+    price: float | None = Field(default=None, description="Real bookable total fare, when sourced from Amadeus")
+    currency: str | None = None
     notes: str | None = None
 
 

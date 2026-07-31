@@ -1,7 +1,7 @@
 // Base URL for the TripMate FastAPI backend. Hardcoded for v1 — no env plumbing needed.
 export const API_BASE_URL = 'http://localhost:8000'
 
-export type StepName = 'understand' | 'flights' | 'hotels' | 'itinerary' | 'final'
+export type StepName = 'understand' | 'flights' | 'hotels' | 'weather' | 'itinerary' | 'final'
 
 export type FlightOption = {
   airline: string
@@ -11,6 +11,8 @@ export type FlightOption = {
   departure_time?: string | null
   arrival_time?: string | null
   status?: string | null
+  price?: number | null
+  currency?: string | null
   /** When present, often an explanatory/error message (e.g. missing API key, no live matches). */
   notes?: string | null
 }
@@ -19,6 +21,9 @@ export type HotelOption = {
   name: string
   area?: string | null
   price_estimate?: string | null
+  price_per_night_low?: number | null
+  price_per_night_high?: number | null
+  currency?: string | null
   rating?: string | null
   summary: string
   source_url?: string | null
@@ -30,14 +35,34 @@ export type ItineraryDay = {
   activities: string[]
 }
 
+export type WeatherSummary = {
+  basis: 'forecast' | 'historical_average'
+  period_label: string
+  avg_high_c?: number | null
+  avg_low_c?: number | null
+  precipitation_chance_pct?: number | null
+  condition_summary: string
+}
+
+export type BudgetLine = {
+  category: 'flights' | 'hotels' | 'food' | 'activities' | 'other'
+  amount_low?: number | null
+  amount_high?: number | null
+  currency: string
+  basis: 'sourced' | 'estimated'
+  note?: string | null
+}
+
 export type TravelPlan = {
   destination: string
   origin?: string | null
   trip_summary: string
   flights: FlightOption[]
   hotels: HotelOption[]
+  weather?: WeatherSummary | null
   itinerary: ItineraryDay[]
-  budget_estimate?: string | null
+  budget: BudgetLine[]
+  packing_tips: string[]
   recommendations: string[]
 }
 
@@ -109,4 +134,35 @@ export async function* streamTripPlan(
     const parsed = parseEvent(buffer)
     if (parsed) yield parsed
   }
+}
+
+/**
+ * Applies a follow-up instruction to an existing plan ("cheaper hotels",
+ * "make day 2 more relaxed"). The backend re-runs only the affected part —
+ * this returns the updated plan directly, not a stream, since a refine only
+ * touches one or two agents and is fast enough not to need live progress.
+ */
+export async function refineTrip(threadId: string, instruction: string): Promise<TravelPlan> {
+  const response = await fetch(`${API_BASE_URL}/api/trips/${encodeURIComponent(threadId)}/refine`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instruction }),
+  })
+  if (!response.ok) {
+    throw new Error(`Couldn't apply that change (status ${response.status}).`)
+  }
+  return response.json()
+}
+
+/** Fetches a previously-generated plan by its thread id, for shareable links. */
+export async function getTrip(threadId: string): Promise<TravelPlan> {
+  const response = await fetch(`${API_BASE_URL}/api/trips/${encodeURIComponent(threadId)}`)
+  if (!response.ok) {
+    throw new Error(
+      response.status === 404
+        ? "This trip link doesn't exist or has expired."
+        : `The planner couldn't be reached (status ${response.status}).`,
+    )
+  }
+  return response.json()
 }

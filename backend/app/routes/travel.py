@@ -2,12 +2,20 @@ import asyncio
 import queue
 import threading
 from collections.abc import AsyncIterator
+from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel
 
 from app.graph.build import get_travel_graph, new_thread_id, state_to_plan
-from app.schemas import AgentStepEvent, TripRequest
+from app.graph.nodes.final import final_node
+from app.graph.nodes.itinerary import itinerary_node
+from app.schemas import AgentStepEvent, RefineRequest, TravelPlan, TripRequest
+from app.services.hotels import search_hotels
+from app.services.llm import get_llm
+from app.services.retry import retry_call
 
 router = APIRouter()
 
@@ -15,6 +23,7 @@ STEP_MESSAGES = {
     "understand": "Reading your request",
     "flights": "Searching flights",
     "hotels": "Researching hotels",
+    "weather": "Checking the weather",
     "itinerary": "Building your day-by-day itinerary",
     "final": "Finalizing your trip plan",
 }
@@ -82,3 +91,77 @@ async def _sse(request: TripRequest) -> AsyncIterator[str]:
 @router.post("/trips")
 async def plan_trip(request: TripRequest) -> StreamingResponse:
     return StreamingResponse(_sse(request), media_type="text/event-stream")
+
+
+@router.get("/trips/{thread_id}")
+async def get_trip(thread_id: str) -> TravelPlan:
+    """Reconstructs a previously-generated plan for a shareable link.
+
+    Reuses the LangGraph checkpointer's per-thread state rather than a
+    separate store — every completed run is already saved there under its
+    thread_id (in memory, or in Postgres if DATABASE_URL is set).
+    """
+
+    graph = get_travel_graph()
+    snapshot = await asyncio.to_thread(graph.get_state, {"configurable": {"thread_id": thread_id}})
+    state = snapshot.values
+    query = state.get("query")
+
+    if not query or "trip_summary" not in state:
+        raise HTTPException(status_code=404, detail="Trip not found, or the run never completed.")
+
+    return state_to_plan(state, query)
+
+
+class _TargetPick(BaseModel):
+    target: Literal["hotels", "itinerary"]
+
+
+CLASSIFY_PROMPT = """Decide what part of an existing trip plan a follow-up request is
+about. "hotels" for anything about where to stay (price, area, style, rating).
+"itinerary" for everything else — activities, day-by-day changes, pacing, general
+tweaks to the plan. When in doubt, pick "itinerary"."""
+
+
+@router.post("/trips/{thread_id}/refine")
+async def refine_trip(thread_id: str, body: RefineRequest) -> TravelPlan:
+    """Re-runs only the part of the plan a follow-up request is actually about.
+
+    A generic chatbot re-answer would re-read and regenerate everything; this
+    reuses the checkpointed state and only touches hotels (if that's what
+    changed) plus the itinerary/summary that depend on it — flights and
+    weather, which the instruction can't meaningfully change, are left as-is.
+    """
+
+    graph = get_travel_graph()
+    config = {"configurable": {"thread_id": thread_id}}
+    snapshot = await asyncio.to_thread(graph.get_state, config)
+    state = dict(snapshot.values)
+    query = state.get("query")
+
+    if not query or "trip_summary" not in state:
+        raise HTTPException(status_code=404, detail="Trip not found, or the run never completed.")
+
+    classifier = get_llm(temperature=0).with_structured_output(_TargetPick)
+    pick: _TargetPick = await asyncio.to_thread(
+        retry_call,
+        lambda: classifier.invoke(
+            [SystemMessage(content=CLASSIFY_PROMPT), HumanMessage(content=body.instruction)]
+        ),
+    )  # type: ignore[assignment]
+
+    if pick.target == "hotels":
+        state["hotels"] = await asyncio.to_thread(search_hotels, query, body.instruction)
+        state["refinement_instruction"] = None
+    else:
+        state["refinement_instruction"] = body.instruction
+
+    itinerary_update = await asyncio.to_thread(itinerary_node, state)
+    state.update(itinerary_update)
+    state["refinement_instruction"] = None
+
+    final_update = await asyncio.to_thread(final_node, state)
+    state.update(final_update)
+
+    await asyncio.to_thread(graph.update_state, config, state)
+    return state_to_plan(state, query)

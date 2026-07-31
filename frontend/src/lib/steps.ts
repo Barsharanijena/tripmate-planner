@@ -12,7 +12,7 @@ export type StepGroup = {
  */
 export const STEP_GROUPS: StepGroup[] = [
   { id: 'understand', steps: ['understand'] },
-  { id: 'search', steps: ['flights', 'hotels'] },
+  { id: 'search', steps: ['flights', 'hotels', 'weather'] },
   { id: 'itinerary', steps: ['itinerary'] },
   { id: 'final', steps: ['final'] },
 ]
@@ -29,6 +29,10 @@ export const STEP_COPY: Record<StepName, { title: string; description: string }>
   hotels: {
     title: 'Searching hotels',
     description: 'Finding places to stay at your destination',
+  },
+  weather: {
+    title: 'Checking the weather',
+    description: 'Pulling real conditions for your destination',
   },
   itinerary: {
     title: 'Building your itinerary',

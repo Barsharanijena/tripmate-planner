@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from app.config import get_settings
 from app.schemas import HotelOption, TripQuery
 from app.services.llm import get_llm
+from app.services.retry import retry_call
 
 SYSTEM_PROMPT = """You turn raw hotel search results into a short, structured shortlist.
 Pick at most 4 distinct hotels. If price or rating isn't stated, leave it null rather than guessing.
@@ -32,14 +33,44 @@ def search_hotels(query: TripQuery) -> list[HotelOption]:
     os.environ.setdefault("TAVILY_API_KEY", settings.tavily_api_key)
     search = TavilySearch(max_results=5)
     budget_hint = f" under ${query.budget_usd:.0f} total" if query.budget_usd else ""
-    raw_results = search.invoke(f"best hotels in {query.destination}{budget_hint} for travelers")
 
-    structurer = get_llm(temperature=0).with_structured_output(_HotelShortlist)
-    shortlist = structurer.invoke(
-        [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=f"Destination: {query.destination}\n\nSearch results:\n{raw_results}"),
+    def _search_once():
+        result = search.invoke(f"best hotels in {query.destination}{budget_hint} for travelers")
+        # TavilySearch catches its own request errors and returns {"error": ...}
+        # instead of raising, so that has to be promoted back into a real
+        # exception for retry_call to retry and for the except below to catch.
+        if isinstance(result, dict) and result.get("error"):
+            raise RuntimeError(str(result["error"]))
+        return result
+
+    try:
+        raw_results = retry_call(_search_once)
+    except Exception as exc:  # noqa: BLE001 - surfaced to the user, not a crash
+        return [
+            HotelOption(
+                name="Search failed",
+                summary=f"Hotel search is temporarily unavailable: {exc}",
+            )
         ]
-    )
 
-    return shortlist.hotels  # type: ignore[union-attr]
+    try:
+        structurer = get_llm(temperature=0).with_structured_output(_HotelShortlist)
+        shortlist: _HotelShortlist = retry_call(
+            lambda: structurer.invoke(
+                [
+                    SystemMessage(content=SYSTEM_PROMPT),
+                    HumanMessage(
+                        content=f"Destination: {query.destination}\n\nSearch results:\n{raw_results}"
+                    ),
+                ]
+            )
+        )  # type: ignore[assignment]
+    except Exception as exc:  # noqa: BLE001
+        return [
+            HotelOption(
+                name="Summary unavailable",
+                summary=f"Found hotel results but couldn't summarize them: {exc}",
+            )
+        ]
+
+    return shortlist.hotels

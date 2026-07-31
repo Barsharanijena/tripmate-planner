@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.graph.state import TravelState
 from app.services.llm import get_llm
+from app.services.retry import retry_call
 
 SYSTEM_PROMPT = """You write the closing summary for a travel plan that already has
 flights, hotels, and a day-by-day itinerary attached. Produce:
@@ -29,9 +30,21 @@ def final_node(state: TravelState) -> dict:
     )
 
     llm = get_llm(temperature=0.4).with_structured_output(_FinalTouches)
-    result: _FinalTouches = llm.invoke(
-        [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)]
-    )  # type: ignore[assignment]
+
+    try:
+        result: _FinalTouches = retry_call(
+            lambda: llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)])
+        )  # type: ignore[assignment]
+    except Exception as exc:  # noqa: BLE001 - the flights/hotels/itinerary already gathered still ship
+        return {
+            "trip_summary": (
+                f"Here's what we found for your trip to {query.destination}. "
+                f"We couldn't generate a polished summary right now ({exc}), but the "
+                "flights, hotels, and itinerary above are ready."
+            ),
+            "budget_estimate": None,
+            "recommendations": [],
+        }
 
     return {
         "trip_summary": result.trip_summary,

@@ -3,6 +3,7 @@ import requests
 from app.config import get_settings
 from app.schemas import FlightOption, TripQuery
 from app.services.airports import resolve_iata
+from app.services.retry import retry_call
 
 AVIATIONSTACK_URL = "https://api.aviationstack.com/v1/flights"
 
@@ -26,12 +27,17 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
     if dest_iata:
         params["arr_iata"] = dest_iata
 
-    try:
+    def _fetch():
         response = requests.get(AVIATIONSTACK_URL, params=params, timeout=20)
         response.raise_for_status()
-        payload = response.json()
+        return response.json()
+
+    try:
+        payload = retry_call(_fetch)
     except requests.RequestException as exc:
-        return [FlightOption(airline="Error", notes=f"Flight API request failed: {exc}")]
+        return [FlightOption(airline="Error", notes=f"Flight API request failed after retries: {exc}")]
+    except ValueError:
+        return [FlightOption(airline="Error", notes="Flight API returned an unreadable response.")]
 
     if "error" in payload:
         message = payload["error"].get("message", "Unknown error")

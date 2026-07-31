@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from app.graph.state import TravelState
 from app.schemas import ItineraryDay
 from app.services.llm import get_llm
+from app.services.retry import retry_call
 
 SYSTEM_PROMPT = """You are an expert travel planner. Build a practical, budget-aware
 day-by-day itinerary from the trip details, flights, and hotel shortlist provided.
@@ -29,6 +30,20 @@ def itinerary_node(state: TravelState) -> dict:
     )
 
     llm = get_llm(temperature=0.4).with_structured_output(_Itinerary)
-    result = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)])
 
-    return {"itinerary": result.days}  # type: ignore[union-attr]
+    try:
+        result: _Itinerary = retry_call(
+            lambda: llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)])
+        )  # type: ignore[assignment]
+    except Exception as exc:  # noqa: BLE001 - degrade instead of failing the whole trip plan
+        return {
+            "itinerary": [
+                ItineraryDay(
+                    day_number=1,
+                    title="Itinerary unavailable",
+                    activities=[f"Couldn't generate a day-by-day plan right now: {exc}"],
+                )
+            ]
+        }
+
+    return {"itinerary": result.days}

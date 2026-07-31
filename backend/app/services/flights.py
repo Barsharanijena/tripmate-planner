@@ -21,11 +21,25 @@ def search_flights(query: TripQuery, limit: int = 6) -> list[FlightOption]:
     origin_iata = resolve_iata(query.origin)
     dest_iata = resolve_iata(query.destination)
 
-    params = {"access_key": settings.aviationstack_api_key, "limit": limit}
+    # Without a resolved destination, AviationStack would be queried with no
+    # route filter at all and hand back arbitrary global live flights that
+    # look plausible but have nothing to do with what was actually asked —
+    # worse than no result, so this stops before making that call.
+    if not dest_iata:
+        return [
+            FlightOption(
+                airline="Unknown destination",
+                origin_iata=origin_iata,
+                notes=(
+                    f'Couldn\'t match "{query.destination}" to a known airport, city, or '
+                    "country — live flight search was skipped rather than showing unrelated flights."
+                ),
+            )
+        ]
+
+    params = {"access_key": settings.aviationstack_api_key, "limit": limit, "arr_iata": dest_iata}
     if origin_iata:
         params["dep_iata"] = origin_iata
-    if dest_iata:
-        params["arr_iata"] = dest_iata
 
     def _fetch():
         response = requests.get(AVIATIONSTACK_URL, params=params, timeout=20)

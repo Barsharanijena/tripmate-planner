@@ -176,9 +176,15 @@ def resolve_iata(place: str | None) -> str | None:
     if best:
         return best[1]
 
-    # Last resort: tolerate minor misspellings ("Bhubaneshwar" vs the
-    # dataset's "Bhubaneswar") by fuzzy-matching against known city names.
-    close = difflib.get_close_matches(needle, _city_names(), n=1, cutoff=0.8)
+    # Last resort: tolerate near-exact misspellings ("Bhubaneshwar" vs the
+    # dataset's "Bhubaneswar", ratio ~0.96) by fuzzy-matching against known
+    # city names. The cutoff is deliberately strict — looser thresholds
+    # (~0.8) also confidently "correct" unrelated short names into real
+    # places that just happen to be similarly spelled (e.g. "Narnia" ->
+    # "Sarnia", Ontario), which is worse than admitting we don't recognize
+    # the place: a wrong-but-plausible-looking flight result erodes trust
+    # in every other number this app shows more than an honest miss does.
+    close = difflib.get_close_matches(needle, _city_names(), n=1, cutoff=0.92)
     if close:
         return resolve_iata(close[0])
 

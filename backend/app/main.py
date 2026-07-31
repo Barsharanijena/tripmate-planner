@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routes.travel import router as travel_router
+from app.observability import configure_langsmith
+
+configure_langsmith()  # must run before the graph/LLM clients below are ever constructed
+
+from app.routes.travel import router as travel_router  # noqa: E402
 
 app = FastAPI(
     title="TripMate Planner API",

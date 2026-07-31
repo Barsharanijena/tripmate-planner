@@ -58,6 +58,9 @@ Required env vars (see `backend/.env.example`):
   behavior.
 - `DATABASE_URL` — optional Postgres connection string for durable trip
   threads.
+- `LANGSMITH_API_KEY` / `LANGSMITH_PROJECT` — optional. When set, every graph
+  run is traced to LangSmith (smith.langchain.com): per-node inputs/outputs,
+  token usage, and latency for each of the 5 agents. Free tier available.
 
 ### Frontend
 

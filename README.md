@@ -43,14 +43,15 @@ required to run the app locally.
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in GROQ_API_KEY at minimum
+cp .env.example .env   # fill in GEMINI_API_KEY at minimum
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Required env vars (see `backend/.env.example`):
 
-- `GROQ_API_KEY` — powers query understanding, itinerary drafting, and the
-  final summary. Required.
+- `GEMINI_API_KEY` — powers query understanding, itinerary drafting, and the
+  final summary via the Gemini API (Google AI Studio). Required. Get one at
+  https://aistudio.google.com/apikey.
 - `TAVILY_API_KEY` — hotel research. Optional; without it, hotel results are
   a clearly-labeled placeholder instead of a crash.
 - `AVIATIONSTACK_API_KEY` — live flight data. Optional, same fallback
